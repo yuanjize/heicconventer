@@ -10,16 +10,19 @@ interface ImageCardProps {
   item: HeicItem;
   onDownload: (item: HeicItem) => void;
   onRemove: (id: string) => void;
+  statusCopy: Record<HeicItem["status"], string>;
+  downloadLabel: string;
+  errorFallback: string;
 }
 
-const statusCopy = {
-  idle: "Queued",
-  converting: "Converting",
-  success: "Ready",
-  error: "Failed",
-} as const;
-
-export const ImageCard = ({ item, onDownload, onRemove }: ImageCardProps) => {
+export const ImageCard = ({
+  item,
+  onDownload,
+  onRemove,
+  statusCopy,
+  downloadLabel,
+  errorFallback,
+}: ImageCardProps) => {
   const isLoading = item.status === "converting" || item.status === "idle";
   const isSuccess = item.status === "success" && item.outputBlob;
   const isError = item.status === "error";
@@ -76,29 +79,28 @@ export const ImageCard = ({ item, onDownload, onRemove }: ImageCardProps) => {
           </p>
         </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-sm">
             <span className={statusColor}>{statusCopy[item.status]}</span>
-            <span className="text-slate-300">|</span>
             <span className="text-slate-500">{statusIcon}</span>
           </div>
 
           <Button
             variant={isSuccess ? "primary" : "secondary"}
             size="sm"
-            className="min-w-[120px]"
+            className="w-full sm:min-w-[120px] sm:w-auto"
             onClick={() => onDownload(item)}
             disabled={!isSuccess}
           >
             <Download className="h-4 w-4" />
-            Download
+            {downloadLabel}
           </Button>
         </div>
 
         {isLoading && <Progress className="mt-1" />}
         {isError && (
           <p className="text-xs text-rose-600">
-            {item.error ?? "Conversion failed"}
+            {item.error ?? errorFallback}
           </p>
         )}
       </div>

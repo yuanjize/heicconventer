@@ -82,6 +82,8 @@ export const useHeicConverter = () => {
           URL.revokeObjectURL(item.previewUrl);
         }
       });
+      // Clear pending state to help iOS Safari GC.
+      itemsRef.current = [];
     };
   }, []);
 
@@ -91,7 +93,14 @@ export const useHeicConverter = () => {
         return;
       }
 
-      const newItems: HeicItem[] = files.map((file) => ({
+      // Normalize HEIC extensions for older iOS file pickers that report uppercase.
+      const normalized = files.map((file) =>
+        /\\.HEIC$/i.test(file.name)
+          ? new File([file], file.name.replace(/\\.HEIC$/i, ".heic"), { type: file.type })
+          : file
+      );
+
+      const newItems: HeicItem[] = normalized.map((file) => ({
         id: createId(),
         file,
         status: "idle",
