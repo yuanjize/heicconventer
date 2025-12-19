@@ -8,6 +8,8 @@ import {
   Image as ImageIcon,
   ShieldCheck,
   Trash2,
+  Moon,
+  Sun,
 } from "lucide-react";
 
 import type { HeicItem, ConversionSettings } from "./types";
@@ -20,6 +22,7 @@ import { cn } from "./lib/utils";
 import { useHeicConverter } from "./hooks/useHeicConverter";
 
 type Locale = "en" | "zh" | "es";
+type Theme = "light" | "dark";
 
 const translations: Record<Locale, {
   label: string;
@@ -194,6 +197,7 @@ const App = () => {
     useHeicConverter();
   const [isZipping, setIsZipping] = useState(false);
   const [locale, setLocale] = useState<Locale>(getInitialLocale());
+  const [theme, setTheme] = useState<Theme>("light");
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<ConversionSettings>({
     format: "image/jpeg",
@@ -201,6 +205,33 @@ const App = () => {
   });
 
   const t = translations[locale];
+
+  useEffect(() => {
+    // Initial theme check
+    const isDarkStored =
+      localStorage.getItem("heic-theme") === "dark" ||
+      (!("heic-theme" in localStorage) &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
+    
+    setTheme(isDarkStored ? "dark" : "light");
+    if (isDarkStored) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    if (next === "dark") {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("heic-theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("heic-theme", "light");
+    }
+  };
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -329,13 +360,14 @@ const App = () => {
   return (
     <div
       className={cn(
-        "relative min-h-screen overflow-hidden text-slate-900",
-        "bg-[radial-gradient(1200px_circle_at_20%_10%,#ffe8b0_0%,transparent_60%),radial-gradient(900px_circle_at_85%_15%,#c6f0ff_0%,transparent_55%),linear-gradient(140deg,#fff7e8_0%,#eefbf3_45%,#eaf7ff_100%)]"
+        "relative min-h-screen overflow-hidden text-slate-900 transition-colors duration-300 dark:text-slate-100",
+        "bg-[radial-gradient(1200px_circle_at_20%_10%,#ffe8b0_0%,transparent_60%),radial-gradient(900px_circle_at_85%_15%,#c6f0ff_0%,transparent_55%),linear-gradient(140deg,#fff7e8_0%,#eefbf3_45%,#eaf7ff_100%)]",
+        "dark:bg-[radial-gradient(1200px_circle_at_20%_10%,#1e293b_0%,transparent_60%),radial-gradient(900px_circle_at_85%_15%,#0f172a_0%,transparent_55%),linear-gradient(140deg,#020617_0%,#0f172a_45%,#1e293b_100%)]"
       )}
     >
-      <div className="pointer-events-none absolute -left-20 top-10 h-64 w-64 rounded-full bg-amber-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute -right-10 top-40 h-72 w-72 rounded-full bg-cyan-200/40 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 left-10 h-72 w-72 rounded-full bg-emerald-200/30 blur-3xl" />
+      <div className="pointer-events-none absolute -left-20 top-10 h-64 w-64 rounded-full bg-amber-200/40 blur-3xl dark:bg-amber-900/20" />
+      <div className="pointer-events-none absolute -right-10 top-40 h-72 w-72 rounded-full bg-cyan-200/40 blur-3xl dark:bg-cyan-900/20" />
+      <div className="pointer-events-none absolute bottom-0 left-10 h-72 w-72 rounded-full bg-emerald-200/30 blur-3xl dark:bg-emerald-900/20" />
 
       <main
         className={cn(
@@ -347,43 +379,55 @@ const App = () => {
       >
         <header className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg dark:bg-white dark:text-slate-900">
               <ImageIcon className="h-7 w-7" />
             </div>
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500">
+              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">
                 {t.heroKicker}
               </p>
               <h1 className="font-['Fraunces'] text-3xl font-semibold tracking-tight md:text-4xl">
                 {t.heroTitle}
               </h1>
-              <p className="mt-1 text-sm font-medium text-slate-600">{t.heroTagline}</p>
+              <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-400">{t.heroTagline}</p>
             </div>
           </div>
 
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
-            <Badge className="w-fit">
+            <Badge className="w-fit dark:bg-slate-800 dark:text-slate-200">
               <ShieldCheck className="h-4 w-4" />
               {t.privacyBadge}
             </Badge>
-            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-sm text-slate-700 shadow-sm">
-              <span className="text-xs font-semibold text-slate-500">{t.languageLabel}</span>
-              <select
-                value={locale}
-                onChange={(e) => setLocale(e.target.value as Locale)}
-                className="h-9 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 focus:border-slate-400 focus:outline-none"
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+                className="h-9 w-9 rounded-full border border-slate-200 bg-white/80 text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
               >
-                {Object.entries(translations).map(([value, data]) => (
-                  <option key={value} value={value}>
-                    {data.label}
-                  </option>
-                ))}
-              </select>
+                {theme === "light" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+
+              <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t.languageLabel}</span>
+                <select
+                  value={locale}
+                  onChange={(e) => setLocale(e.target.value as Locale)}
+                  className="h-9 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 focus:border-slate-400 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:focus:border-slate-500"
+                >
+                  {Object.entries(translations).map(([value, data]) => (
+                    <option key={value} value={value}>
+                      {data.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
         </header>
 
-        <div className="mt-4 max-w-3xl text-base text-slate-600">{t.description}</div>
+        <div className="mt-4 max-w-3xl text-base text-slate-600 dark:text-slate-300">{t.description}</div>
 
         <div className="mt-8 flex flex-col gap-4">
           <SettingsPanel
@@ -398,24 +442,24 @@ const App = () => {
             className={cn(
               "flex min-h-[220px] w-full cursor-pointer flex-col items-center justify-center gap-4 border-2 border-dashed px-6 py-10 text-center transition",
               isDragActive
-                ? "border-slate-900 bg-white/90"
-                : "border-slate-300 bg-white/70"
+                ? "border-slate-900 bg-white/90 dark:border-slate-100 dark:bg-slate-800/90"
+                : "border-slate-300 bg-white/70 dark:border-slate-700 dark:bg-slate-900/50"
             )}
           >
             <input {...getInputProps()} />
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900">
               <CloudUpload className="h-6 w-6" />
             </div>
             <div className="text-lg font-semibold">
               {isMobile ? t.uploadMobile : t.uploadDesktop}
             </div>
-            <div className="text-sm text-slate-500">{t.uploadSupport}</div>
+            <div className="text-sm text-slate-500 dark:text-slate-400">{t.uploadSupport}</div>
           </Card>
         </div>
 
         {hasItems && !isMobile && (
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm font-medium text-slate-600">
+            <div className="text-sm font-medium text-slate-600 dark:text-slate-400">
               {t.readySummary(successItems.length, pendingCount)}
             </div>
             <div className="flex items-center gap-3">
@@ -452,7 +496,7 @@ const App = () => {
       </main>
 
       {isMobile && hasItems && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-white/60 bg-white/85 pb-[calc(env(safe-area-inset-bottom)+12px)] backdrop-blur">
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-white/60 bg-white/85 pb-[calc(env(safe-area-inset-bottom)+12px)] backdrop-blur dark:border-slate-800 dark:bg-slate-900/85">
           <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
             <Button variant="ghost" className="flex-1" onClick={clearAll}>
               <Trash2 className="h-4 w-4" />

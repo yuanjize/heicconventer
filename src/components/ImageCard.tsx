@@ -29,10 +29,10 @@ export const ImageCard = ({
 
   const statusColor = cn(
     "text-xs font-semibold",
-    item.status === "success" && "text-emerald-600",
-    item.status === "converting" && "text-sky-600",
-    item.status === "idle" && "text-slate-500",
-    item.status === "error" && "text-rose-600"
+    item.status === "success" && "text-emerald-600 dark:text-emerald-400",
+    item.status === "converting" && "text-sky-600 dark:text-sky-400",
+    item.status === "idle" && "text-slate-500 dark:text-slate-400",
+    item.status === "error" && "text-rose-600 dark:text-rose-400"
   );
 
   const statusIcon = {
@@ -45,7 +45,7 @@ export const ImageCard = ({
   return (
     <Card className="group relative flex h-full flex-col gap-3 rounded-3xl p-4">
       <div className="relative">
-        <div className="aspect-square overflow-hidden rounded-2xl bg-slate-100">
+        <div className="aspect-square overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-800">
           {item.previewUrl ? (
             <img
               src={item.previewUrl}
@@ -53,7 +53,7 @@ export const ImageCard = ({
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#e2e8f0_0%,#f8fafc_100%)] text-slate-400">
+            <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#e2e8f0_0%,#f8fafc_100%)] text-slate-400 dark:bg-[linear-gradient(135deg,#1e293b_0%,#0f172a_100%)] dark:text-slate-500">
               <span className="text-xs font-semibold tracking-widest">
                 HEIC
               </span>
@@ -64,7 +64,7 @@ export const ImageCard = ({
         <Button
           variant="ghost"
           size="icon"
-          className="absolute right-2 top-2 rounded-full bg-white/80 text-slate-600 shadow-sm hover:bg-white"
+          className="absolute right-2 top-2 rounded-full bg-white/80 text-slate-600 shadow-sm hover:bg-white dark:bg-slate-900/80 dark:text-slate-300 dark:hover:bg-slate-900"
           onClick={() => onRemove(item.id)}
           aria-label={`Remove ${item.file.name}`}
         >
@@ -74,7 +74,7 @@ export const ImageCard = ({
 
       <div className="flex flex-1 flex-col gap-2">
         <div className="flex items-start justify-between gap-2">
-          <p className="truncate text-sm font-semibold text-slate-900">
+          <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
             {item.file.name}
           </p>
         </div>
@@ -82,7 +82,7 @@ export const ImageCard = ({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-sm">
             <span className={statusColor}>{statusCopy[item.status]}</span>
-            <span className="text-slate-500">{statusIcon}</span>
+            <span className="text-slate-500 dark:text-slate-400">{statusIcon}</span>
           </div>
 
           <Button
@@ -99,7 +99,7 @@ export const ImageCard = ({
 
         {isLoading && <Progress className="mt-1" />}
         {isError && (
-          <p className="text-xs text-rose-600">
+          <p className="text-xs text-rose-600 dark:text-rose-400">
             {item.error ?? errorFallback}
           </p>
         )}

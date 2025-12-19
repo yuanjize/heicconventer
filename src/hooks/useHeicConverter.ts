@@ -3,6 +3,7 @@ import heic2any from "heic2any";
 import pLimit from "p-limit";
 
 import type { HeicItem, ConversionSettings, ConversionFormat } from "../types";
+import { injectExif } from "../lib/exif";
 
 const createId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -141,7 +142,12 @@ export const useHeicConverter = () => {
                 quality: settings.quality,
               });
 
-              const blob = Array.isArray(output) ? output[0] : output;
+              let blob = Array.isArray(output) ? output[0] : output;
+
+              // Preserve EXIF if output is JPEG
+              if (settings.format === "image/jpeg") {
+                blob = await injectExif(item.file, blob);
+              }
 
               setItems((prev) => {
                 let updated = false;
