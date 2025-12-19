@@ -1,5 +1,4 @@
 import "@testing-library/jest-dom";
-import { vi } from "vitest";
 
 // Polyfill MessageEvent
 if (typeof MessageEvent === 'undefined') {
@@ -24,7 +23,7 @@ class Worker {
     this.onerror = null;
   }
 
-  postMessage(msg: any) {
+  postMessage(_msg: any) {
     // Default implementation does nothing, can be mocked
   }
 
