@@ -1,45 +1,12 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useHeicConverter } from "../useHeicConverter";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import heic2any from "heic2any";
 
-// Mock the Worker
-vi.mock("../../worker/converter.worker?worker", () => {
-  return {
-    default: class MockWorker {
-      onmessage: ((e: MessageEvent) => void) | null = null;
-      onerror: ((e: ErrorEvent) => void) | null = null;
-
-      postMessage(data: any) {
-        // Simulate worker processing
-        setTimeout(() => {
-          if (this.onmessage) {
-            // Check if we should simulate an error (based on file name for testing)
-            if (data.file.name === "bad.heic") {
-              // We can't easily trigger the hook's onerror via the worker instance mock cleanly 
-              // without more complex setup, but we can send an error result payload 
-              // if that's how our worker is designed (it returns { error: ... }).
-              // Our worker returns { blob: ..., error: ... }
-              this.onmessage({
-                data: {
-                  blob: new Blob(),
-                  error: "Corrupt file",
-                },
-              } as MessageEvent);
-            } else {
-              this.onmessage({
-                data: {
-                  blob: new Blob(["mock-image"], { type: data.format }),
-                },
-              } as MessageEvent);
-            }
-          }
-        }, 10);
-      }
-
-      terminate() {}
-    },
-  };
-});
+// Mock heic2any
+vi.mock("heic2any", () => ({
+  default: vi.fn(),
+}));
 
 // Mock URL.createObjectURL and revokeObjectURL
 const mockCreateObjectURL = vi.fn();
@@ -62,6 +29,7 @@ describe("useHeicConverter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreateObjectURL.mockReturnValue("blob:url");
+    (heic2any as any).mockResolvedValue(new Blob(["fake content"], { type: "image/jpeg" }));
   });
 
   it("should initialize with empty items", () => {
@@ -83,11 +51,16 @@ describe("useHeicConverter", () => {
     expect(result.current.items).toHaveLength(1);
     expect(result.current.items[0].status).toBe("idle");
 
-    // Wait for conversion (simulated by mock worker)
+    // Wait for conversion
     await waitFor(() => {
       expect(result.current.items[0].status).toBe("success");
     });
 
+    expect(heic2any).toHaveBeenCalledWith({
+      blob: expect.any(Object),
+      toType: "image/jpeg",
+      quality: 0.8,
+    });
     expect(result.current.items[0].outputName).toBe("test.jpg");
   });
 
@@ -104,6 +77,11 @@ describe("useHeicConverter", () => {
       expect(result.current.items[0].status).toBe("success");
     });
 
+    expect(heic2any).toHaveBeenCalledWith({
+      blob: expect.any(Object),
+      toType: "image/png",
+      quality: 1.0,
+    });
     expect(result.current.items[0].outputName).toBe("photo.png");
   });
 
@@ -120,10 +98,16 @@ describe("useHeicConverter", () => {
       expect(result.current.items[0].status).toBe("success");
     });
 
+    expect(heic2any).toHaveBeenCalledWith({
+      blob: expect.any(Object),
+      toType: "image/webp",
+      quality: 0.5,
+    });
     expect(result.current.items[0].outputName).toBe("image.webp");
   });
 
   it("should handle conversion errors", async () => {
+    (heic2any as any).mockRejectedValue(new Error("Corrupt file"));
     const { result } = renderHook(() => useHeicConverter());
     const file = new File([""], "bad.heic", { type: "image/heic" });
     const settings = { format: "image/jpeg" as const, quality: 0.8 };
