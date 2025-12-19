@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
@@ -10,11 +10,12 @@ import {
   Trash2,
 } from "lucide-react";
 
-import type { HeicItem } from "./types";
+import type { HeicItem, ConversionSettings } from "./types";
 import { ImageCard } from "./components/ImageCard";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Card } from "./components/ui/card";
+import { SettingsPanel } from "./components/SettingsPanel";
 import { cn } from "./lib/utils";
 import { useHeicConverter } from "./hooks/useHeicConverter";
 
@@ -42,20 +43,24 @@ const translations: Record<Locale, {
   status: Record<"idle" | "converting" | "success" | "error", string>;
   errorFallback: string;
   languageLabel: string;
+  settingsTitle: string;
+  formatLabel: string;
+  qualityLabel: string;
+  qualityValue: (q: number) => string;
 }> = {
   en: {
     label: "English",
-    seoTitle: "Free HEIC to JPG Converter | Fast, Private, Secure, No Uploads",
+    seoTitle: "Free HEIC to JPG/PNG Converter | Fast, Private, Secure",
     seoDescription:
-      "Free, fast, private and secure HEIC to JPG converter. 100% client-side, no uploads to server. Works on iOS, Android and desktop browsers.",
+      "Free, fast, private and secure HEIC to JPG/PNG converter. 100% client-side, no uploads to server.",
     seoKeywords:
-      "free HEIC to JPG,fast,privacy first,secure,client-side,no upload,no server,offline,iOS HEIC converter,Android HEIC converter,batch HEIC converter,HEIC to JPEG",
-    heroKicker: "HEIC to JPG",
-    heroTitle: "Pure client-side converter",
+      "free HEIC to JPG,HEIC to PNG,fast,privacy first,secure,client-side,no upload",
+    heroKicker: "HEIC Converter",
+    heroTitle: "Private client-side converter",
     heroTagline: "Free • Fast • Private • Secure • No uploads • iOS / Android ready",
     privacyBadge: "Privacy First",
     description:
-      "Convert HEIC images directly in your browser. Files never leave your device (no server uploads), conversions are accelerated and memory-capped for mobile so iOS / Android stay smooth.",
+      "Convert HEIC images directly in your browser. Files never leave your device. Support JPG, PNG and WebP.",
     uploadDesktop: "Drag and drop HEIC files here, or click to select",
     uploadMobile: "Tap to select HEIC photos",
     uploadSupport: "Supports .heic and .heif files. Multiple selection enabled.",
@@ -73,20 +78,24 @@ const translations: Record<Locale, {
     },
     errorFallback: "Conversion failed",
     languageLabel: "Lang",
+    settingsTitle: "Output Settings",
+    formatLabel: "Format",
+    qualityLabel: "Quality",
+    qualityValue: (q) => `${q}%`,
   },
   zh: {
     label: "中文",
-    seoTitle: "免费 HEIC 转 JPG | 快速、隐私、安全、不上传服务器 | iOS / Android",
+    seoTitle: "免费 HEIC 转 JPG/PNG | 快速、隐私、安全 | iOS / Android",
     seoDescription:
-      "免费快速的 HEIC 转 JPG 转换器，纯前端运行，不上传服务器，保障隐私与安全。支持 iOS 与 Android 手机、桌面浏览器批量转换 HEIC 图片。",
+      "免费快速的 HEIC 转 JPG/PNG 转换器，纯前端运行，不上传服务器。支持 JPG, PNG, WebP。",
     seoKeywords:
-      "免费,快速,隐私,安全,不上传服务器,不传播到服务器,ios,heic 图片转换,HEIC 转 JPG,手机 HEIC 转换,Android,批量转换",
-    heroKicker: "HEIC 转 JPG",
-    heroTitle: "纯前端 HEIC 转 JPG 转换器",
+      "免费,快速,隐私,安全,不上传服务器,HEIC 转 JPG,HEIC 转 PNG",
+    heroKicker: "HEIC 转换器",
+    heroTitle: "纯前端 HEIC 转换器",
     heroTagline: "免费 · 快速 · 隐私 · 安全 · 不上传服务器 · iOS / Android 直转",
     privacyBadge: "隐私优先",
     description:
-      "在浏览器本地完成 HEIC 转 JPG。文件不出设备（不上传服务器），并发受控、内存友好，让 iOS / Android 也能顺滑转换。",
+      "在浏览器本地完成 HEIC 转换。文件不出设备，支持导出 JPG、PNG 和 WebP 格式。",
     uploadDesktop: "拖拽 HEIC 到此处，或点击选择",
     uploadMobile: "点击选择 HEIC 照片",
     uploadSupport: "支持 .heic / .heif，多选批量转换。",
@@ -104,20 +113,24 @@ const translations: Record<Locale, {
     },
     errorFallback: "转换失败",
     languageLabel: "语言",
+    settingsTitle: "输出设置",
+    formatLabel: "格式",
+    qualityLabel: "质量",
+    qualityValue: (q) => `${q}%`,
   },
   es: {
     label: "Español",
-    seoTitle: "Conversor HEIC a JPG gratis | Rápido, privado, seguro, sin subir",
+    seoTitle: "Conversor HEIC a JPG/PNG gratis | Rápido, privado, seguro",
     seoDescription:
-      "Convierte HEIC a JPG gratis, rápido y de forma privada. 100% en el navegador, sin subir al servidor. Funciona en iOS, Android y escritorio.",
+      "Convierte HEIC a JPG/PNG gratis, rápido y de forma privada. 100% en el navegador.",
     seoKeywords:
-      "convertir HEIC a JPG gratis,rápido,privado,seguro,sin subir archivos,sin servidor,offline,iOS HEIC converter,Android HEIC converter,convertir HEIC a JPEG",
-    heroKicker: "HEIC a JPG",
-    heroTitle: "Convertidor HEIC a JPG 100% local",
-    heroTagline: "Gratis · Rápido · Privado · Seguro · Sin subir al servidor · iOS / Android",
+      "convertir HEIC a JPG,HEIC a PNG,gratis,rápido,privado,seguro",
+    heroKicker: "Conversor HEIC",
+    heroTitle: "Convertidor HEIC local",
+    heroTagline: "Gratis · Rápido · Privado · Seguro · Sin subir al servidor",
     privacyBadge: "Privacidad primero",
     description:
-      "Convierte imágenes HEIC directamente en tu navegador. Los archivos nunca salen de tu dispositivo (sin subir), con concurrencia limitada para que iOS / Android sigan fluidos.",
+      "Convierte imágenes HEIC directamente en tu navegador. Soporta JPG, PNG y WebP.",
     uploadDesktop: "Arrastra y suelta archivos HEIC aquí o haz clic para seleccionar",
     uploadMobile: "Toca para elegir fotos HEIC",
     uploadSupport: "Compatible con .heic y .heif. Selección múltiple.",
@@ -135,6 +148,10 @@ const translations: Record<Locale, {
     },
     errorFallback: "La conversión falló",
     languageLabel: "Idioma",
+    settingsTitle: "Configuración",
+    formatLabel: "Formato",
+    qualityLabel: "Calidad",
+    qualityValue: (q) => `${q}%`,
   },
 };
 
@@ -158,11 +175,18 @@ const getInitialLocale = (): Locale => {
   return "en";
 };
 
-const fallbackJpgName = (name: string) => {
+const getExtension = (format: string) => {
+  if (format === "image/png") return ".png";
+  if (format === "image/webp") return ".webp";
+  return ".jpg";
+};
+
+const fallbackName = (name: string, format: string) => {
+  const ext = getExtension(format);
   if (/\.(heic|heif)$/i.test(name)) {
-    return name.replace(/\.(heic|heif)$/i, ".jpg");
+    return name.replace(/\.(heic|heif)$/i, ext);
   }
-  return `${name}.jpg`;
+  return `${name}${ext}`;
 };
 
 const App = () => {
@@ -170,6 +194,11 @@ const App = () => {
     useHeicConverter();
   const [isZipping, setIsZipping] = useState(false);
   const [locale, setLocale] = useState<Locale>(getInitialLocale());
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<ConversionSettings>({
+    format: "image/jpeg",
+    quality: 0.8,
+  });
 
   const t = translations[locale];
 
@@ -211,9 +240,10 @@ const App = () => {
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
-      addFiles(acceptedFiles);
+      // Pass the *current* settings at the moment of drop
+      addFiles(acceptedFiles, settings);
     },
-    [addFiles]
+    [addFiles, settings]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -242,7 +272,8 @@ const App = () => {
     if (!item.outputBlob) {
       return;
     }
-    saveAs(item.outputBlob, item.outputName ?? fallbackJpgName(item.file.name));
+    const fmt = item.conversionSettings?.format ?? "image/jpeg";
+    saveAs(item.outputBlob, item.outputName ?? fallbackName(item.file.name, fmt));
   }, []);
 
   const handleDownloadAll = useCallback(async () => {
@@ -257,11 +288,15 @@ const App = () => {
         if (!item.outputBlob) {
           return;
         }
-        zip.file(item.outputName ?? fallbackJpgName(item.file.name), item.outputBlob);
+        const fmt = item.conversionSettings?.format ?? "image/jpeg";
+        zip.file(
+          item.outputName ?? fallbackName(item.file.name, fmt),
+          item.outputBlob
+        );
       });
 
       const blob = await zip.generateAsync({ type: "blob" });
-      saveAs(blob, `heic-to-jpg-${Date.now()}.zip`);
+      saveAs(blob, `heic-converted-${Date.now()}.zip`);
     } finally {
       setIsZipping(false);
     }
@@ -326,24 +361,33 @@ const App = () => {
 
         <div className="mt-4 max-w-3xl text-base text-slate-600">{t.description}</div>
 
-        <Card
-          {...getRootProps()}
-          className={cn(
-            "mt-8 flex min-h-[220px] w-full cursor-pointer flex-col items-center justify-center gap-4 border-2 border-dashed px-6 py-10 text-center transition",
-            isDragActive
-              ? "border-slate-900 bg-white/90"
-              : "border-slate-300 bg-white/70"
-          )}
-        >
-          <input {...getInputProps()} />
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white">
-            <CloudUpload className="h-6 w-6" />
-          </div>
-          <div className="text-lg font-semibold">
-            {isMobile ? t.uploadMobile : t.uploadDesktop}
-          </div>
-          <div className="text-sm text-slate-500">{t.uploadSupport}</div>
-        </Card>
+        <div className="mt-8 flex flex-col gap-4">
+          <SettingsPanel
+            isOpen={showSettings}
+            onToggle={() => setShowSettings(!showSettings)}
+            settings={settings}
+            onSettingsChange={setSettings}
+            t={t}
+          />
+          <Card
+            {...getRootProps()}
+            className={cn(
+              "flex min-h-[220px] w-full cursor-pointer flex-col items-center justify-center gap-4 border-2 border-dashed px-6 py-10 text-center transition",
+              isDragActive
+                ? "border-slate-900 bg-white/90"
+                : "border-slate-300 bg-white/70"
+            )}
+          >
+            <input {...getInputProps()} />
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white">
+              <CloudUpload className="h-6 w-6" />
+            </div>
+            <div className="text-lg font-semibold">
+              {isMobile ? t.uploadMobile : t.uploadDesktop}
+            </div>
+            <div className="text-sm text-slate-500">{t.uploadSupport}</div>
+          </Card>
+        </div>
 
         {hasItems && !isMobile && (
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3">

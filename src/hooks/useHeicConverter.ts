@@ -1,8 +1,8 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import heic2any from "heic2any";
 import pLimit from "p-limit";
 
-import type { HeicItem } from "../types";
+import type { HeicItem, ConversionSettings, ConversionFormat } from "../types";
 
 const createId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -11,11 +11,24 @@ const createId = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
-const toJpgName = (filename: string) => {
-  if (/\.(heic|heif)$/i.test(filename)) {
-    return filename.replace(/\.(heic|heif)$/i, ".jpg");
+const getExtension = (format: ConversionFormat) => {
+  switch (format) {
+    case "image/png":
+      return ".png";
+    case "image/webp":
+      return ".webp";
+    case "image/jpeg":
+    default:
+      return ".jpg";
   }
-  return `${filename}.jpg`;
+};
+
+const toOutputName = (filename: string, format: ConversionFormat) => {
+  const ext = getExtension(format);
+  if (/\.(heic|heif)$/i.test(filename)) {
+    return filename.replace(/\.(heic|heif)$/i, ext);
+  }
+  return `${filename}${ext}`;
 };
 
 const getErrorMessage = (error: unknown) => {
@@ -88,15 +101,15 @@ export const useHeicConverter = () => {
   }, []);
 
   const addFiles = useCallback(
-    (files: File[]) => {
+    (files: File[], settings: ConversionSettings) => {
       if (!files.length) {
         return;
       }
 
       // Normalize HEIC extensions for older iOS file pickers that report uppercase.
       const normalized = files.map((file) =>
-        /\\.HEIC$/i.test(file.name)
-          ? new File([file], file.name.replace(/\\.HEIC$/i, ".heic"), { type: file.type })
+        /\.HEIC$/i.test(file.name)
+          ? new File([file], file.name.replace(/\.HEIC$/i, ".heic"), { type: file.type })
           : file
       );
 
@@ -104,6 +117,7 @@ export const useHeicConverter = () => {
         id: createId(),
         file,
         status: "idle",
+        conversionSettings: settings,
       }));
 
       setItems((prev) => [...prev, ...newItems]);
@@ -120,11 +134,11 @@ export const useHeicConverter = () => {
                 )
               );
 
-              // Convert with bounded concurrency to avoid memory spikes on mobile.
+              // Convert with bounded concurrency.
               const output = await heic2any({
                 blob: item.file,
-                toType: "image/jpeg",
-                quality: 0.8,
+                toType: settings.format,
+                quality: settings.quality,
               });
 
               const blob = Array.isArray(output) ? output[0] : output;
@@ -144,7 +158,7 @@ export const useHeicConverter = () => {
                     ...existing,
                     status: "success" as const,
                     outputBlob: blob,
-                    outputName: toJpgName(existing.file.name),
+                    outputName: toOutputName(existing.file.name, settings.format),
                     previewUrl,
                   };
                 });
