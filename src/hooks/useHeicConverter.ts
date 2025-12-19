@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import heic2any from "heic2any";
 import pLimit from "p-limit";
 
 import type { HeicItem, ConversionSettings, ConversionFormat } from "../types";
+import ConverterWorker from "../worker/converter.worker?worker";
+import type { ConversionConfig, ConversionResult } from "../worker/converter.worker";
 
 const createId = () => {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -77,6 +78,33 @@ const useIsMobile = () => {
   return isMobile;
 };
 
+// Helper to wrap worker communication in a Promise
+const runWorker = (config: ConversionConfig): Promise<ConversionResult> => {
+  return new Promise((resolve, reject) => {
+    const worker = new ConverterWorker();
+
+    worker.onmessage = (e: MessageEvent<ConversionResult>) => {
+      resolve(e.data);
+      worker.terminate(); // Clean up worker after single task
+    };
+
+    worker.onerror = (err) => {
+      reject(err);
+      worker.terminate();
+    };
+
+    // heic2any inside worker needs the blob
+    // We pass the file directly (it's cloneable)
+    // However, we need to invoke the specific function if we used Comlink, 
+    // but here we are using raw worker messaging for simplicity or we can use the 'convertHeic' export logic if we set up Comlink.
+    // Since I defined `export const convertHeic` in the worker file but am importing it as `?worker`, 
+    // the worker file itself needs to listen to messages to call that function.
+    
+    // I need to update the worker file to listen to messages!
+    worker.postMessage(config);
+  });
+};
+
 export const useHeicConverter = () => {
   const [items, setItems] = useState<HeicItem[]>([]);
   const itemsRef = useRef<HeicItem[]>([]);
@@ -134,14 +162,18 @@ export const useHeicConverter = () => {
                 )
               );
 
-              // Convert with bounded concurrency.
-              const output = await heic2any({
-                blob: item.file,
-                toType: settings.format,
+              // Use the Worker
+              const result = await runWorker({
+                file: item.file,
+                format: settings.format,
                 quality: settings.quality,
               });
 
-              const blob = Array.isArray(output) ? output[0] : output;
+              if (result.error) {
+                throw new Error(result.error);
+              }
+
+              const blob = result.blob;
 
               setItems((prev) => {
                 let updated = false;

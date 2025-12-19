@@ -61,7 +61,7 @@ const translations: Record<Locale, {
     privacyBadge: "Privacy First",
     description:
       "Convert HEIC images directly in your browser. Files never leave your device. Support JPG, PNG and WebP.",
-    uploadDesktop: "Drag and drop HEIC files here, or click to select",
+    uploadDesktop: "Drag and drop HEIC files here, or click to select, or paste from clipboard",
     uploadMobile: "Tap to select HEIC photos",
     uploadSupport: "Supports .heic and .heif files. Multiple selection enabled.",
     readySummary: (ready, pending) => `${ready} ready | ${pending} in queue`,
@@ -96,7 +96,7 @@ const translations: Record<Locale, {
     privacyBadge: "隐私优先",
     description:
       "在浏览器本地完成 HEIC 转换。文件不出设备，支持导出 JPG、PNG 和 WebP 格式。",
-    uploadDesktop: "拖拽 HEIC 到此处，或点击选择",
+    uploadDesktop: "拖拽 HEIC 到此处，或点击选择，或直接粘贴",
     uploadMobile: "点击选择 HEIC 照片",
     uploadSupport: "支持 .heic / .heif，多选批量转换。",
     readySummary: (ready, pending) => `${ready} 个已就绪 | ${pending} 个队列中`,
@@ -131,7 +131,7 @@ const translations: Record<Locale, {
     privacyBadge: "Privacidad primero",
     description:
       "Convierte imágenes HEIC directamente en tu navegador. Soporta JPG, PNG y WebP.",
-    uploadDesktop: "Arrastra y suelta archivos HEIC aquí o haz clic para seleccionar",
+    uploadDesktop: "Arrastra y suelta archivos HEIC aquí o haz clic para seleccionar o pegar",
     uploadMobile: "Toca para elegir fotos HEIC",
     uploadSupport: "Compatible con .heic y .heif. Selección múltiple.",
     readySummary: (ready, pending) => `${ready} listos | ${pending} en cola`,
@@ -237,6 +237,30 @@ const App = () => {
     setOg("og:title", t.seoTitle);
     setOg("og:description", t.seoDescription);
   }, [t, locale]);
+
+  // Paste support
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!e.clipboardData || !e.clipboardData.files.length) return;
+      
+      const files = Array.from(e.clipboardData.files).filter(
+        (file) =>
+          file.type === "image/heic" ||
+          file.type === "image/heif" ||
+          /\.heic$/i.test(file.name) ||
+          /\.heif$/i.test(file.name)
+      );
+
+      if (files.length > 0) {
+        addFiles(files, settings);
+      }
+    };
+
+    document.addEventListener("paste", handlePaste);
+    return () => {
+      document.removeEventListener("paste", handlePaste);
+    };
+  }, [addFiles, settings]);
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
