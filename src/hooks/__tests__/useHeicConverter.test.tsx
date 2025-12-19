@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useHeicConverter } from "../useHeicConverter";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import heic2any from "heic2any";
 
 // Mock heic2any
@@ -18,7 +18,7 @@ global.URL.revokeObjectURL = mockRevokeObjectURL;
 class MockFile {
   name: string;
   type: string;
-  constructor(parts: (string | Blob)[], name: string, options: { type: string }) {
+  constructor(_parts: (string | Blob)[], name: string, options: { type: string }) {
     this.name = name;
     this.type = options.type;
   }
