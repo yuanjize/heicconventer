@@ -10,6 +10,8 @@ import {
   Trash2,
   Moon,
   Sun,
+  Smartphone,
+  X,
 } from "lucide-react";
 
 import type { HeicItem, ConversionSettings } from "./types";
@@ -20,6 +22,15 @@ import { Card } from "./components/ui/card";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { cn } from "./lib/utils";
 import { useHeicConverter } from "./hooks/useHeicConverter";
+
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: "accepted" | "dismissed";
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
 
 type Locale = "en" | "zh" | "es";
 type Theme = "light" | "dark";
@@ -50,6 +61,8 @@ const translations: Record<Locale, {
   formatLabel: string;
   qualityLabel: string;
   qualityValue: (q: number) => string;
+  installLabel: string;
+  iosInstallStep: string;
 }> = {
   en: {
     label: "English",
@@ -85,6 +98,8 @@ const translations: Record<Locale, {
     formatLabel: "Format",
     qualityLabel: "Quality",
     qualityValue: (q) => `${q}%`,
+    installLabel: "Install App",
+    iosInstallStep: "Tap Share then 'Add to Home Screen'",
   },
   zh: {
     label: "中文",
@@ -120,6 +135,8 @@ const translations: Record<Locale, {
     formatLabel: "格式",
     qualityLabel: "质量",
     qualityValue: (q) => `${q}%`,
+    installLabel: "安装应用",
+    iosInstallStep: "点击‘分享’按钮，然后选择‘添加到主屏幕’",
   },
   es: {
     label: "Español",
@@ -153,8 +170,10 @@ const translations: Record<Locale, {
     languageLabel: "Idioma",
     settingsTitle: "Configuración",
     formatLabel: "Formato",
-    qualityLabel: "Calidad",
+    qualityLabel: "Quality",
     qualityValue: (q) => `${q}%`,
+    installLabel: "Instalar App",
+    iosInstallStep: "Pulsa Compartir y luego 'Añadir a la pantalla de inicio'",
   },
 };
 
@@ -199,6 +218,9 @@ const App = () => {
   const [locale, setLocale] = useState<Locale>(getInitialLocale());
   const [theme, setTheme] = useState<Theme>("light");
   const [showSettings, setShowSettings] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
   const [settings, setSettings] = useState<ConversionSettings>({
     format: "image/jpeg",
     quality: 0.8,
@@ -207,7 +229,31 @@ const App = () => {
   const t = translations[locale];
 
   useEffect(() => {
-    // Initial theme check
+    // Detect iOS
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(ios);
+
+    // Check if already in standalone mode
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone;
+
+    if (!isStandalone) {
+      const handleBeforeInstallPrompt = (e: Event) => {
+        e.preventDefault();
+        setDeferredPrompt(e as BeforeInstallPromptEvent);
+        setShowInstallBanner(true);
+      };
+
+      window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+
+      if (ios) {
+        setShowInstallBanner(true);
+      }
+
+      return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    }
+  }, []);
+
+  useEffect(() => {
     const isDarkStored =
       localStorage.getItem("heic-theme") === "dark" ||
       (!("heic-theme" in localStorage) &&
@@ -230,6 +276,17 @@ const App = () => {
     } else {
       document.documentElement.classList.remove("dark");
       localStorage.setItem("heic-theme", "light");
+    }
+  };
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      void deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === "accepted") {
+        setDeferredPrompt(null);
+        setShowInstallBanner(false);
+      }
     }
   };
 
@@ -269,7 +326,6 @@ const App = () => {
     setOg("og:description", t.seoDescription);
   }, [t, locale]);
 
-  // Paste support
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       if (!e.clipboardData || !e.clipboardData.files.length) return;
@@ -295,7 +351,6 @@ const App = () => {
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
-      // Pass the *current* settings at the moment of drop
       addFiles(acceptedFiles, settings);
     },
     [addFiles, settings]
@@ -426,6 +481,43 @@ const App = () => {
             </div>
           </div>
         </header>
+
+        {showInstallBanner && (
+          <div className="mt-6 flex animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="flex w-full items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50/50 p-4 backdrop-blur-sm dark:border-amber-900/30 dark:bg-amber-900/10">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                  <Smartphone className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                    {t.installLabel}
+                  </p>
+                  <p className="text-xs font-medium text-amber-700 dark:text-amber-400/80">
+                    {isIOS ? t.iosInstallStep : t.heroTagline}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {!isIOS && deferredPrompt && (
+                  <Button
+                    size="sm"
+                    onClick={handleInstall}
+                    className="h-9 bg-amber-600 px-4 text-xs hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600"
+                  >
+                    {t.installLabel}
+                  </Button>
+                )}
+                <button
+                  onClick={() => setShowInstallBanner(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-amber-600 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/40"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="mt-4 max-w-3xl text-base text-slate-600 dark:text-slate-300">{t.description}</div>
 

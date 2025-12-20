@@ -14,6 +14,10 @@ export default defineConfig({
         short_name: "HEIC2JPG",
         description: "Free, private HEIC to JPG/PNG converter",
         theme_color: "#ffffff",
+        background_color: "#ffffff",
+        display: "standalone",
+        start_url: "/",
+        orientation: "portrait-primary",
         icons: [
           {
             src: "pwa-192x192.png",
