@@ -527,6 +527,9 @@ const App = () => {
             onToggle={() => setShowSettings(!showSettings)}
             settings={settings}
             onSettingsChange={setSettings}
+            showInstall={showInstallBanner}
+            onInstall={handleInstall}
+            isIOS={isIOS}
             t={t}
           />
           <Card

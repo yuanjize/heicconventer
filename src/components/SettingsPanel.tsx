@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Settings2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Settings2, Smartphone } from "lucide-react";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Slider } from "./ui/slider";
@@ -10,11 +10,17 @@ interface SettingsPanelProps {
   onToggle: () => void;
   settings: ConversionSettings;
   onSettingsChange: (settings: ConversionSettings) => void;
+  showInstall?: boolean;
+  onInstall?: () => void;
+  isIOS?: boolean;
   t: {
     settingsTitle: string;
     formatLabel: string;
     qualityLabel: string;
     qualityValue: (q: number) => string;
+    installLabel: string;
+    iosInstallStep: string;
+    heroTagline: string;
   };
 }
 
@@ -29,6 +35,9 @@ export const SettingsPanel = ({
   onToggle,
   settings,
   onSettingsChange,
+  showInstall,
+  onInstall,
+  isIOS,
   t,
 }: SettingsPanelProps) => {
   const handleFormatChange = (format: ConversionFormat) => {
@@ -59,10 +68,27 @@ export const SettingsPanel = ({
       <div
         className={cn(
           "w-full max-w-md overflow-hidden transition-all duration-300 ease-in-out",
-          isOpen ? "max-h-60 opacity-100" : "max-h-0 opacity-0"
+          isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
         )}
       >
         <div className="flex flex-col gap-6 rounded-2xl border border-slate-200 bg-white/60 p-6 shadow-sm backdrop-blur-sm dark:border-slate-700 dark:bg-slate-900/60">
+          {showInstall && (
+            <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50/30 p-4 dark:border-amber-900/20 dark:bg-amber-900/10">
+              <div className="flex items-center gap-3">
+                <Smartphone className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <span className="text-sm font-semibold text-amber-900 dark:text-amber-100">{t.installLabel}</span>
+              </div>
+              <p className="text-xs text-amber-700 dark:text-amber-400/80">
+                {isIOS ? t.iosInstallStep : t.heroTagline}
+              </p>
+              {!isIOS && onInstall && (
+                <Button size="sm" onClick={onInstall} className="mt-1 h-8 bg-amber-600 text-xs hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600">
+                  {t.installLabel}
+                </Button>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col gap-3">
             <Label className="dark:text-slate-200">{t.formatLabel}</Label>
             <div className="flex gap-2">
