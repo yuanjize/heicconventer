@@ -222,7 +222,6 @@ const App = () => {
   const [locale, setLocale] = useState<Locale>(getInitialLocale());
   const [theme, setTheme] = useState<Theme>("light");
   const [showSettings, setShowSettings] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -240,7 +239,6 @@ const App = () => {
 
     // Check if already in standalone mode
     const standalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone;
-    setIsStandalone(!!standalone);
 
     if (!standalone) {
       const handleBeforeInstallPrompt = (e: Event) => {
@@ -292,7 +290,6 @@ const App = () => {
       if (outcome === "accepted") {
         setDeferredPrompt(null);
         setShowInstallBanner(false);
-        setIsStandalone(true);
       }
     }
   };
@@ -534,7 +531,7 @@ const App = () => {
             onToggle={() => setShowSettings(!showSettings)}
             settings={settings}
             onSettingsChange={setSettings}
-            showInstall={!isStandalone}
+            showInstall={showInstallBanner}
             onInstall={handleInstall}
             isIOS={isIOS}
             t={t}
