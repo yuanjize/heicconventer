@@ -63,6 +63,7 @@ const translations: Record<Locale, {
   qualityValue: (q: number) => string;
   installLabel: string;
   iosInstallStep: string;
+  heroTaglineShort: string;
 }> = {
   en: {
     label: "English",
@@ -74,6 +75,7 @@ const translations: Record<Locale, {
     heroKicker: "HEIC Converter",
     heroTitle: "Private client-side converter",
     heroTagline: "Free • Fast • Private • Secure • No uploads • iOS / Android ready",
+    heroTaglineShort: "Free • Fast • Private • Secure",
     privacyBadge: "Privacy First",
     description:
       "Convert HEIC images directly in your browser. Files never leave your device. Support JPG, PNG and WebP.",
@@ -111,6 +113,7 @@ const translations: Record<Locale, {
     heroKicker: "HEIC 转换器",
     heroTitle: "纯前端 HEIC 转换器",
     heroTagline: "免费 · 快速 · 隐私 · 安全 · 不上传服务器 · iOS / Android 直转",
+    heroTaglineShort: "免费 · 快速 · 隐私 · 安全",
     privacyBadge: "隐私优先",
     description:
       "在浏览器本地完成 HEIC 转换。文件不出设备，支持导出 JPG、PNG 和 WebP 格式。",
@@ -148,6 +151,7 @@ const translations: Record<Locale, {
     heroKicker: "Conversor HEIC",
     heroTitle: "Convertidor HEIC local",
     heroTagline: "Gratis · Rápido · Privado · Seguro · Sin subir al servidor",
+    heroTaglineShort: "Gratis · Rápido · Privado · Seguro",
     privacyBadge: "Privacidad primero",
     description:
       "Convierte imágenes HEIC directamente en tu navegador. Soporta JPG, PNG y WebP.",
@@ -170,7 +174,7 @@ const translations: Record<Locale, {
     languageLabel: "Idioma",
     settingsTitle: "Configuración",
     formatLabel: "Formato",
-    qualityLabel: "Quality",
+    qualityLabel: "Calidad",
     qualityValue: (q) => `${q}%`,
     installLabel: "Instalar App",
     iosInstallStep: "Pulsa Compartir y luego 'Añadir a la pantalla de inicio'",
@@ -218,6 +222,7 @@ const App = () => {
   const [locale, setLocale] = useState<Locale>(getInitialLocale());
   const [theme, setTheme] = useState<Theme>("light");
   const [showSettings, setShowSettings] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -234,9 +239,10 @@ const App = () => {
     setIsIOS(ios);
 
     // Check if already in standalone mode
-    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone;
+    const standalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone;
+    setIsStandalone(!!standalone);
 
-    if (!isStandalone) {
+    if (!standalone) {
       const handleBeforeInstallPrompt = (e: Event) => {
         e.preventDefault();
         setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -286,6 +292,7 @@ const App = () => {
       if (outcome === "accepted") {
         setDeferredPrompt(null);
         setShowInstallBanner(false);
+        setIsStandalone(true);
       }
     }
   };
@@ -494,7 +501,7 @@ const App = () => {
                     {t.installLabel}
                   </p>
                   <p className="text-xs font-medium text-amber-700 dark:text-amber-400/80">
-                    {isIOS ? t.iosInstallStep : t.heroTagline}
+                    {isIOS ? t.iosInstallStep : t.heroTaglineShort}
                   </p>
                 </div>
               </div>
@@ -527,7 +534,7 @@ const App = () => {
             onToggle={() => setShowSettings(!showSettings)}
             settings={settings}
             onSettingsChange={setSettings}
-            showInstall={showInstallBanner}
+            showInstall={!isStandalone}
             onInstall={handleInstall}
             isIOS={isIOS}
             t={t}
