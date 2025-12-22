@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import heic2any from "heic2any";
 import pLimit from "p-limit";
+import { invoke } from "@tauri-apps/api/core";
 
 import type { HeicItem, ConversionSettings, ConversionFormat } from "../types";
 import { injectExif } from "../lib/exif";
@@ -38,6 +39,26 @@ const getErrorMessage = (error: unknown) => {
   }
   return "Conversion failed";
 };
+
+// Toggle native Android (JNI) pipeline; default off to favor WASM/JS for reliability.
+const useNativeAndroid = false;
+
+const withTimeout = async <T,>(promise: Promise<T>, ms: number) =>
+  new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("Conversion timed out"));
+    }, ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
 
 const useIsMobile = () => {
   const getMatch = () => {
@@ -82,6 +103,7 @@ export const useHeicConverter = () => {
   const [items, setItems] = useState<HeicItem[]>([]);
   const itemsRef = useRef<HeicItem[]>([]);
   const isMobile = useIsMobile();
+  const conversionTimeoutMs = isMobile ? 45000 : 120000;
 
   const limit = useMemo(() => pLimit(isMobile ? 2 : 5), [isMobile]);
 
@@ -126,6 +148,7 @@ export const useHeicConverter = () => {
       void Promise.all(
         newItems.map((item) =>
           limit(async () => {
+            let timeoutId: ReturnType<typeof setTimeout> | undefined;
             try {
               setItems((prev) =>
                 prev.map((existing) =>
@@ -135,14 +158,58 @@ export const useHeicConverter = () => {
                 )
               );
 
-              // Convert with bounded concurrency.
-              const output = await heic2any({
-                blob: item.file,
-                toType: settings.format,
-                quality: settings.quality,
-              });
+              timeoutId = setTimeout(() => {
+                setItems((prev) =>
+                  prev.map((existing) =>
+                    existing.id === item.id
+                      ? { ...existing, status: "error" as const, error: "Conversion timed out" }
+                      : existing
+                  )
+                );
+              }, conversionTimeoutMs);
 
-              let blob = Array.isArray(output) ? output[0] : output;
+              // Convert with bounded concurrency.
+              let blob: Blob;
+
+              // Check for Tauri Android environment
+              if (useNativeAndroid && isMobile && typeof window !== "undefined" && (window as any).__TAURI_INTERNALS__) {
+                 try {
+                  const arrayBuffer = await item.file.arrayBuffer();
+                  const bytes = new Uint8Array(arrayBuffer);
+                  const quality = Math.round(settings.quality * 100);
+                  
+                  console.log(`Native call start: ${item.file.name}, size: ${bytes.length}`);
+                  
+                  // Invoke native command - Passing Uint8Array directly is more efficient
+                  const result = await withTimeout(
+                    invoke<number[] | Uint8Array>("convert_image_native", {
+                      data: bytes, 
+                      format: settings.format,
+                      quality
+                    }),
+                    conversionTimeoutMs
+                  );
+                  
+                  console.log(`Native call success: ${item.file.name}`);
+                  blob = new Blob([new Uint8Array(result)], { type: settings.format });
+                 } catch (err) {
+                    const errorMsg = `Native conversion failed: ${err}`;
+                    console.error(errorMsg);
+                    alert(errorMsg); // Popup alert for real device debugging
+                    throw new Error(errorMsg);
+                 }
+              } else {
+                 // Web / Desktop Fallback
+                  const output = await withTimeout(
+                    heic2any({
+                      blob: item.file,
+                      toType: settings.format,
+                      quality: settings.quality,
+                    }),
+                    conversionTimeoutMs
+                  ) as Blob | Blob[];
+                  blob = Array.isArray(output) ? output[0] : output;
+              }
 
               // Preserve EXIF if output is JPEG
               if (settings.format === "image/jpeg") {
@@ -172,6 +239,7 @@ export const useHeicConverter = () => {
                 return updated ? next : prev;
               });
             } catch (error) {
+              console.error("Conversion Error:", error);
               setItems((prev) =>
                 prev.map((existing) =>
                   existing.id === item.id
@@ -179,6 +247,10 @@ export const useHeicConverter = () => {
                     : existing
                 )
               );
+            } finally {
+              if (timeoutId) {
+                clearTimeout(timeoutId);
+              }
             }
           })
         )

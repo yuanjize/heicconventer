@@ -8,8 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "build:single": "vite build --config vite.single.config.ts",
     "tauri": "tauri",
-    "preview": "vite preview",
-    "test": "vitest run"
+    "android:build": "node scripts/build-android.js"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.0.2",
